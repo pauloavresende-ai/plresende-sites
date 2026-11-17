@@ -77,15 +77,21 @@ function smtp_local($de, $para, $assunto, $corpo, $cab, $comCred = true) {
   $ehlo = $cmd('EHLO sites.plresende.pt', '250');
   if ($ehlo !== true) { fclose($s); return $ehlo; }
   if ($cred) {
+    $tls = false;
     $r = $cmd('STARTTLS', '220');
-    if ($r === true) {
+    if ($r === true) { $tls = true;
       stream_context_set_option($s, 'ssl', 'verify_peer', false);
       stream_context_set_option($s, 'ssl', 'verify_peer_name', false);
       if (!@stream_socket_enable_crypto($s, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) { fclose($s); return 'falhou TLS'; }
       $cmd('EHLO sites.plresende.pt', '250');
     }
-    $r = $cmd('AUTH PLAIN ' . base64_encode("\0" . $cred['user'] . "\0" . $cred['pass']), '235');
-    if ($r !== true) { fclose($s); return 'autenticação recusada: ' . $r; }
+    $u = trim((string)$cred['user']); $pw = (string)$cred['pass'];
+    $r = $cmd('AUTH PLAIN ' . base64_encode("\0" . $u . "\0" . $pw), '235');
+    if ($r !== true) {   // tenta AUTH LOGIN
+      $r2 = $cmd('AUTH LOGIN', '334');
+      if ($r2 === true) { $cmd(base64_encode($u), '334'); $r2 = $cmd(base64_encode($pw), '235'); }
+      if ($r2 !== true) { fclose($s); return 'autenticação recusada [' . $u . ', ' . strlen($pw) . ' caracteres, tls=' . ($tls ? 'sim' : 'não') . ']: ' . $r; }
+    }
   }
   foreach ([["MAIL FROM:<{$de}>", '250'], ["RCPT TO:<{$para}>", '25'], ['DATA', '354']] as $p) {
     $r = $cmd($p[0], $p[1]); if ($r !== true) { fclose($s); return $r; }
