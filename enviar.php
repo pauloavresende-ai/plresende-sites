@@ -127,9 +127,44 @@ $ok = enviar($DESTINO, assunto('Pedido de site · ' . $empresa), implode("\n", $
 $viaCli = '-';
 if ($ok && $email !== '') {
   $copia = implode("\n", array_slice($linhas, 0, -2));
-  $txtCli = "Olá {$nome},\n\nRecebemos o seu pedido de site para {$empresa}. Vamos analisar as suas respostas e entramos em contacto no dia útil seguinte.\n\nCópia das suas respostas:\n\n{$copia}\n\nSe precisar, fale connosco pelo WhatsApp 96 340 1241 ou pelo 22 201 2425.\n\nPL Resende · Tecnologias de Informação\nRua da Alegria, 1035, 4000-048 Porto\nhttps://sites.plresende.pt\n";
-  $cabCli = "From: PL Resende <{$REMETENTE}>\r\nReply-To: {$DESTINO}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
-  if (!enviar($email, assunto('Recebemos o seu pedido de site · PL Resende'), $txtCli, $cabCli, $REMETENTE, $viaCli)) { $viaCli = 'FALHOU ' . $viaCli; }
+  $h = function ($t) { return htmlspecialchars($t, ENT_QUOTES, 'UTF-8'); };
+  $linhasHtml = '';
+  foreach (array_slice($linhas, 0, -2) as $l) {
+    if ($l === '') continue;
+    $par = explode(': ', $l, 2);
+    $linhasHtml .= '<tr><td style="padding:6px 12px 6px 0;color:#6b6460;vertical-align:top;white-space:nowrap">' . $h($par[0]) . "</td>\n"
+                 . '<td style="padding:6px 0;color:#1f1a17">' . nl2br($h($par[1] ?? '')) . "</td></tr>\n";
+  }
+  $htmlCli = '<!doctype html><html lang="pt"><head><meta charset="utf-8"></head>' . "\n"
+  . '<body style="margin:0;padding:0;background:#f4f1ee;font-family:Arial,Helvetica,sans-serif;font-size:15px;line-height:1.5;color:#1f1a17">' . "\n"
+  . '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ee"><tr><td align="center" style="padding:24px 12px">' . "\n"
+  . '<table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden">' . "\n"
+  . '<tr><td style="height:6px;background:#c44e1b"></td></tr>' . "\n"
+  . '<tr><td style="padding:28px 32px 8px">' . "\n"
+  . '<p style="margin:0 0 14px">Olá ' . $h($nome) . ',</p>' . "\n"
+  . '<p style="margin:0 0 14px">Recebemos o seu pedido de site para <b>' . $h($empresa) . '</b>. Vamos analisar as suas respostas e entramos em contacto no dia útil seguinte.</p>' . "\n"
+  . '<p style="margin:22px 0 8px;font-weight:bold;color:#c44e1b">Cópia das suas respostas</p>' . "\n"
+  . '<table role="presentation" cellpadding="0" cellspacing="0" style="width:100%;font-size:14px;border-top:1px solid #eee">' . "\n" . $linhasHtml . "</table>\n"
+  . '<p style="margin:22px 0 0">Se precisar de alguma coisa, responda a este email ou fale connosco pelo WhatsApp.</p>' . "\n"
+  . '<p style="margin:14px 0 0">Com os melhores cumprimentos,</p>' . "\n"
+  . '</td></tr>' . "\n"
+  . '<tr><td style="padding:20px 32px 28px">' . "\n"
+  . '<table role="presentation" cellpadding="0" cellspacing="0" style="border-top:2px solid #c44e1b;padding-top:16px;width:100%"><tr>' . "\n"
+  . '<td style="width:84px;padding:16px 16px 0 0;vertical-align:top"><a href="https://plresende.pt"><img src="https://sites.plresende.pt/logo-email.png" width="72" height="72" alt="PL Resende" style="display:block;border:0;border-radius:6px"></a></td>' . "\n"
+  . '<td style="padding-top:16px;vertical-align:top;font-size:13px;line-height:1.6;color:#4a4440">' . "\n"
+  . '<b style="font-size:15px;color:#1f1a17">PL Resende</b><br>Tecnologias de Informação<br>' . "\n"
+  . 'Tel. 22 201 2425 · WhatsApp <a href="https://wa.me/351963401241" style="color:#c44e1b;text-decoration:none;white-space:nowrap">96 340 1241</a><br>' . "\n"
+  . '<a href="mailto:info@plresende.com" style="color:#c44e1b;text-decoration:none">info@plresende.com</a> · <a href="https://plresende.pt" style="color:#c44e1b;text-decoration:none">plresende.pt</a><br>' . "\n"
+  . 'Rua da Alegria, 1035, 4000-048 Porto' . "\n"
+  . '</td></tr></table>' . "\n"
+  . '</td></tr></table>' . "\n"
+  . '</td></tr></table></body></html>' . "\n";
+  $txtCli = "Olá {$nome},\n\nRecebemos o seu pedido de site para {$empresa}. Vamos analisar as suas respostas e entramos em contacto no dia útil seguinte.\n\nCópia das suas respostas:\n\n{$copia}\n\nSe precisar de alguma coisa, responda a este email ou fale connosco pelo WhatsApp.\n\nCom os melhores cumprimentos,\n\nPL Resende · Tecnologias de Informação\nTel. 22 201 2425 · WhatsApp 96 340 1241\ninfo@plresende.com · https://plresende.pt\nRua da Alegria, 1035, 4000-048 Porto\n";
+  $fronteira = 'plr-' . bin2hex(random_bytes(8));
+  $corpoCli = "--{$fronteira}\nContent-Type: text/plain; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n\n{$txtCli}\n"
+            . "--{$fronteira}\nContent-Type: text/html; charset=UTF-8\nContent-Transfer-Encoding: 8bit\n\n{$htmlCli}\n--{$fronteira}--\n";
+  $cabCli = "From: PL Resende <{$REMETENTE}>\r\nReply-To: {$DESTINO}\r\nMIME-Version: 1.0\r\nContent-Type: multipart/alternative; boundary=\"{$fronteira}\"\r\n";
+  if (!enviar($email, assunto('Recebemos o seu pedido de site · PL Resende'), $corpoCli, $cabCli, $REMETENTE, $viaCli)) { $viaCli = 'FALHOU ' . $viaCli; }
 }
 
 registar("{$empresa} | interno=" . ($ok ? 'ok via ' . $via : 'FALHOU ' . $via) . " | cliente={$viaCli}");

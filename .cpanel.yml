@@ -5,3 +5,4 @@ deployment:
     - /bin/mkdir -p $DEPLOYPATH
     - /bin/cp index.html $DEPLOYPATH
     - /bin/cp enviar.php $DEPLOYPATH
+    - /bin/cp logo-email.png $DEPLOYPATH
