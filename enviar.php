@@ -61,6 +61,7 @@ function assunto($t) { return '=?UTF-8?B?' . base64_encode($t) . '?='; }
 // /home/UTILIZADOR/sites-smtp.php  com  <?php return ['user'=>'info@plresende.com','pass'=>'PALAVRA-PASSE'];
 $CRED = @include dirname(__DIR__, 2) . '/sites-smtp.php';
 if (!is_array($CRED)) { $CRED = null; }
+if ($CRED && !empty($CRED['user'])) { $REMETENTE = $CRED['user']; }   // envia em nome da conta autenticada
 
 // Envio por SMTP no servidor de email do próprio cPanel (porta 587 com autenticação; 25 sem autenticação como último recurso)
 function smtp_local($de, $para, $assunto, $corpo, $cab, $comCred = true) {
