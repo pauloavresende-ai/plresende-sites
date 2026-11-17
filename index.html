@@ -594,7 +594,7 @@ footer .legal{display:flex;flex-direction:column;gap:4px;text-align:right}
       if(el.id==='f_tel'&&v){v=String(el.value).replace(/\D/g,'').length>=9}
       el.setAttribute('aria-invalid',v?'false':'true'); if(!v&&!bad) bad=el;
     });
-    if(bad){err.textContent='Preencha os campos marcados com * para continuar.';err.hidden=false;bad.focus();return false}
+    if(bad){err.textContent='Preencha os campos marcados com * para continuar.';err.hidden=false;bad.scrollIntoView({behavior:'smooth',block:'center'});bad.focus({preventScroll:true});return false}
     err.hidden=true;return true;
   }
   function go(n){
@@ -626,7 +626,7 @@ footer .legal{display:flex;flex-direction:column;gap:4px;text-align:right}
       .catch(function(){return {ok:false}})
       .then(function(res){
         clearTimeout(timer);
-        f.hidden=true; document.getElementById('done').hidden=false;
+        f.hidden=true; var dn=document.getElementById('done'); dn.hidden=false; dn.scrollIntoView({behavior:'smooth',block:'center'});
         var a=document.getElementById('doneWa'); a.href=wa;
         if(!res||!res.ok){
           document.getElementById('doneTitle').textContent='Falta um passo: envie-nos as respostas';
