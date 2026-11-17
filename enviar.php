@@ -17,6 +17,8 @@ if (isset($_GET['diag'])) {
     'mail' => function_exists('mail') && !in_array('mail', array_map('trim', explode(',', (string)ini_get('disable_functions')))),
     'mbstring' => function_exists('mb_substr'),
     'smtp_local' => (bool)@fsockopen('127.0.0.1', 25, $en, $es, 3),
+    'smtp_587' => (bool)@fsockopen('127.0.0.1', 587, $en, $es, 3),
+    'credenciais' => is_array(@include dirname(__DIR__, 2) . '/sites-smtp.php'),
     'log' => is_writable(dirname($LOG)),
   ]);
   exit;
@@ -55,15 +57,36 @@ $linhas[] = 'Recebido em ' . date('d/m/Y H:i') . ' · IP ' . ($_SERVER['REMOTE_A
 
 function assunto($t) { return '=?UTF-8?B?' . base64_encode($t) . '?='; }
 
-// Envio por SMTP local (servidor de email do próprio cPanel), usado se mail() falhar
-function smtp_local($de, $para, $assunto, $corpo, $cab) {
-  $s = @fsockopen('127.0.0.1', 25, $en, $es, 10);
-  if (!$s) { return 'sem ligação SMTP: ' . $es; }
+// Credenciais da conta de email, num ficheiro FORA da pasta pública:
+// /home/UTILIZADOR/sites-smtp.php  com  <?php return ['user'=>'info@plresende.com','pass'=>'PALAVRA-PASSE'];
+$CRED = @include dirname(__DIR__, 2) . '/sites-smtp.php';
+if (!is_array($CRED)) { $CRED = null; }
+
+// Envio por SMTP no servidor de email do próprio cPanel (porta 587 com autenticação; 25 sem autenticação como último recurso)
+function smtp_local($de, $para, $assunto, $corpo, $cab, $comCred = true) {
+  global $CRED;
+  $cred = $comCred ? $CRED : null;
+  $porta = $cred ? 587 : 25;
+  $s = @fsockopen('127.0.0.1', $porta, $en, $es, 10);
+  if (!$s) { return "sem ligação SMTP {$porta}: " . $es; }
   stream_set_timeout($s, 15);
   $ler = function () use ($s) { $r = ''; while (($l = fgets($s, 515)) !== false) { $r .= $l; if (isset($l[3]) && $l[3] === ' ') break; } return $r; };
   $cmd = function ($c, $esperado) use ($s, $ler) { fwrite($s, $c . "\r\n"); $r = $ler(); return strpos($r, $esperado) === 0 ? true : trim($r); };
   $ler();
-  foreach ([['EHLO sites.plresende.pt', '250'], ["MAIL FROM:<{$de}>", '250'], ["RCPT TO:<{$para}>", '25'], ['DATA', '354']] as $p) {
+  $ehlo = $cmd('EHLO sites.plresende.pt', '250');
+  if ($ehlo !== true) { fclose($s); return $ehlo; }
+  if ($cred) {
+    $r = $cmd('STARTTLS', '220');
+    if ($r === true) {
+      stream_context_set_option($s, 'ssl', 'verify_peer', false);
+      stream_context_set_option($s, 'ssl', 'verify_peer_name', false);
+      if (!@stream_socket_enable_crypto($s, true, STREAM_CRYPTO_METHOD_TLS_CLIENT)) { fclose($s); return 'falhou TLS'; }
+      $cmd('EHLO sites.plresende.pt', '250');
+    }
+    $r = $cmd('AUTH PLAIN ' . base64_encode("\0" . $cred['user'] . "\0" . $cred['pass']), '235');
+    if ($r !== true) { fclose($s); return 'autenticação recusada: ' . $r; }
+  }
+  foreach ([["MAIL FROM:<{$de}>", '250'], ["RCPT TO:<{$para}>", '25'], ['DATA', '354']] as $p) {
     $r = $cmd($p[0], $p[1]); if ($r !== true) { fclose($s); return $r; }
   }
   $msg = "To: {$para}\r\nSubject: {$assunto}\r\nDate: " . date('r') . "\r\n" . $cab . "\r\n" . str_replace(["\r\n", "\n"], "\r\n", $corpo);
@@ -75,10 +98,15 @@ function smtp_local($de, $para, $assunto, $corpo, $cab) {
 function enviar($para, $assunto, $corpo, $cab, $de, &$via) {
   $ok = function_exists('mail') ? @mail($para, $assunto, $corpo, $cab, '-f' . $de) : false;
   if ($ok) { $via = 'mail'; return true; }
-  $erro = error_get_last()['message'] ?? 'mail() indisponível';
+  global $CRED;
   $r = smtp_local($de, $para, $assunto, $corpo, $cab);
-  if ($r === true) { $via = 'smtp'; return true; }
-  $via = 'mail: ' . $erro . ' / smtp: ' . $r; return false;
+  if ($r === true) { $via = $CRED ? 'smtp autenticado' : 'smtp'; return true; }
+  if ($CRED) {
+    $r2 = smtp_local($de, $para, $assunto, $corpo, $cab, false);
+    if ($r2 === true) { $via = 'smtp (sem autenticação; 587 falhou: ' . $r . ')'; return true; }
+    $r .= ' / 25: ' . $r2;
+  }
+  $via = 'smtp: ' . $r; return false;
 }
 
 $cab  = "From: PL Resende Sites <{$REMETENTE}>\r\n";
@@ -91,7 +119,8 @@ $ok = enviar($DESTINO, assunto('Pedido de site · ' . $empresa), implode("\n", $
 // Confirmação automática para o cliente (se deixou email)
 $viaCli = '-';
 if ($ok && $email !== '') {
-  $txtCli = "Olá {$nome},\n\nRecebemos o seu pedido de site para {$empresa}. Vamos analisar as suas respostas e entramos em contacto no dia útil seguinte.\n\nSe precisar, fale connosco pelo WhatsApp 96 340 1241 ou pelo 22 201 2425.\n\nPL Resende · Tecnologias de Informação\nRua da Alegria, 1035, 4000-048 Porto\nhttps://sites.plresende.pt\n";
+  $copia = implode("\n", array_slice($linhas, 0, -2));
+  $txtCli = "Olá {$nome},\n\nRecebemos o seu pedido de site para {$empresa}. Vamos analisar as suas respostas e entramos em contacto no dia útil seguinte.\n\nCópia das suas respostas:\n\n{$copia}\n\nSe precisar, fale connosco pelo WhatsApp 96 340 1241 ou pelo 22 201 2425.\n\nPL Resende · Tecnologias de Informação\nRua da Alegria, 1035, 4000-048 Porto\nhttps://sites.plresende.pt\n";
   $cabCli = "From: PL Resende <{$REMETENTE}>\r\nReply-To: {$DESTINO}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
   if (!enviar($email, assunto('Recebemos o seu pedido de site · PL Resende'), $txtCli, $cabCli, $REMETENTE, $viaCli)) { $viaCli = 'FALHOU ' . $viaCli; }
 }
