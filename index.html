@@ -5,12 +5,12 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <link rel="canonical" href="https://sites.plresende.pt/">
 <meta property="og:title" content="Site novo para a sua empresa · PL Resende">
-<meta property="og:description" content="Black Friday: criação do site a 349,50 € + IVA em vez de 699 €. Alojamento, domínio e email desde 17 € + IVA por mês.">
+<meta property="og:description" content="criação do site a 349,50 € + IVA em vez de 699 €. Alojamento, domínio e email desde 17 € + IVA por mês.">
 <meta property="og:url" content="https://sites.plresende.pt/">
 <meta property="og:type" content="website">
 <meta property="og:locale" content="pt_PT">
 <title>PL Resende Site Novo</title>
-<meta name="description" content="Black Friday PL Resende: criação do site com 50 % de desconto, 349,50 € + IVA em vez de 699 €. Alojamento, domínio e email desde 19 € + IVA por mês. Porto.">
+<meta name="description" content="PL Resende: criação do site com 50 % de desconto, 349,50 € + IVA em vez de 699 €. Alojamento, domínio e email desde 19 € + IVA por mês. Porto.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&display=swap">
 <style>
@@ -650,5 +650,24 @@ footer .legal{display:flex;flex-direction:column;gap:4px;text-align:right}
   </div>
 </footer>
 
+<script>
+/* A partir de 1 de dezembro de 2026 a campanha continua, sem a referência à Black Friday, até 31 de dezembro. */
+(function(){
+  if (new Date() < new Date(2026,11,1)) return;
+  var trocas=[
+    ['Nesta Black Friday, ','Até ao fim do ano, '],
+    ['Black Friday · até 30 de novembro','Campanha até 31 de dezembro'],
+    ['Black Friday −50 %','Campanha −50 %'],
+    ['Black Friday','Campanha de fim de ano'],
+    ['30 de novembro de 2026','31 de dezembro de 2026'],
+    ['30 de novembro','31 de dezembro'],
+    ['30/11/2026','31/12/2026'],
+    ['30/11','31/12']
+  ];
+  var w=document.createTreeWalker(document.body,NodeFilter.SHOW_TEXT,null), n, t;
+  while((n=w.nextNode())){ t=n.nodeValue; if(!/Black Friday|30 de novembro|30\/11/.test(t)) continue;
+    trocas.forEach(function(r){ t=t.split(r[0]).join(r[1]); }); n.nodeValue=t; }
+})();
+</script>
 </body>
 </html>
