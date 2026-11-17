@@ -42,4 +42,18 @@ if ($email !== '') { $cab .= "Reply-To: {$email}\r\n"; }
 $cab .= "MIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
 
 $ok = @mail($DESTINO, $assunto, implode("\n", $linhas), $cab, '-f' . $REMETENTE);
+
+// Confirmação automática para o cliente (se deixou email)
+$okCli = null;
+if ($ok && $email !== '') {
+  $assCli = '=?UTF-8?B?' . base64_encode('Recebemos o seu pedido de site · PL Resende') . '?=';
+  $txtCli = "Olá {$nome},\n\nRecebemos o seu pedido de site para {$empresa}. Vamos analisar as suas respostas e entramos em contacto no dia útil seguinte.\n\nSe precisar, fale connosco pelo WhatsApp 96 340 1241 ou pelo 22 201 2425.\n\nPL Resende · Tecnologias de Informação\nRua da Alegria, 1035, 4000-048 Porto\nhttps://sites.plresende.pt\n";
+  $cabCli = "From: PL Resende <{$REMETENTE}>\r\nReply-To: {$DESTINO}\r\nMIME-Version: 1.0\r\nContent-Type: text/plain; charset=UTF-8\r\nContent-Transfer-Encoding: 8bit\r\n";
+  $okCli = @mail($email, $assCli, $txtCli, $cabCli, '-f' . $REMETENTE);
+}
+
+// Registo de envios fora da pasta pública (/home/UTILIZADOR/envios-sites.log)
+$log = dirname(__DIR__, 2) . '/envios-sites.log';
+@file_put_contents($log, date('Y-m-d H:i:s') . " | {$empresa} | interno=" . ($ok ? 'ok' : 'FALHOU') . " | cliente=" . ($okCli === null ? '-' : ($okCli ? 'ok' : 'FALHOU')) . "\n", FILE_APPEND);
+
 echo $ok ? '{"ok":true}' : '{"ok":false}';
