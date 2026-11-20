@@ -7,3 +7,8 @@ Landing page da campanha Presença Digital da PL Resende (Black Friday: criaçã
 - `.cpanel.yml`: copia os ficheiros para `public_html/sites/` quando se faz "Deploy" no cPanel.
 
 Regra: um repositório e um subdomínio por serviço (`plresende-sites` → sites.plresende.pt; `plresende-impressao` → impressao.plresende.pt).
+
+## Campanha Loja Online (sites.plresende.pt/lojas/)
+
+- `lojas/index.html`: landing page da campanha de lojas online, com a PC Infor como caso real e questionário de 2 passos (usa o mesmo `enviar.php`, com o campo `campanha`).
+- `lojas/img/`: capturas da loja www.pcinfor.pt.

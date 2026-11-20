@@ -7,3 +7,6 @@ deployment:
     - /bin/cp enviar.php $DEPLOYPATH
     - /bin/cp logo-email.png $DEPLOYPATH
     - /bin/cp avatar-email.png $DEPLOYPATH
+    - /bin/mkdir -p $DEPLOYPATH/lojas/img
+    - /bin/cp lojas/index.html $DEPLOYPATH/lojas/
+    - /bin/cp lojas/img/*.jpg $DEPLOYPATH/lojas/img/
